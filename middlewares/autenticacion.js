@@ -1,7 +1,7 @@
 const jwt = require("jsonwebtoken");
 let SEED = require("../config/config").SEED;
 //Verificar token
-exports.verificaToken = (req, res) => {
+exports.verificaToken = (req, res, next) => {
   let token = req.query.token;
   jwt.verify(token, SEED, (err, decoded) => {
     if (err) {
@@ -11,7 +11,8 @@ exports.verificaToken = (req, res) => {
         message: "No autorizado"
       });
     }
-    req.usuario = decoded.usuario;
+    //
+    req.usuario = decoded.usuarioDB;
     next();
   });
 };

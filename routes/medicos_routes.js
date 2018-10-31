@@ -1,38 +1,39 @@
 const express = require("express");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
 const mdAuth = require("../middlewares/autenticacion");
 const app = express();
 
-const Usuario = require("../models/usuario");
+const Medico = require("../models/medico");
+const Hospital = require("../models/hospital");
 
 //Get users
 app.get("/", (req, res, next) => {
+  let condition = { status: true };
   let desde = req.query.desde || 0;
   desde = Number(desde);
-  let condition = { status: true };
-  Usuario.find(condition, "nombre email img role")
+  Medico.find(condition)
     .skip(desde)
     .limit(5)
-    .exec((err, usuarios) => {
+    .populate("usuario", "nombre email")
+    .populate("hospital")
+    .exec((err, medicos) => {
       if (err) {
         return res.status(500).json({
           status: 500,
-          message: "Error cargando usuarios",
+          message: "Error cargando medicos",
           errors: err
         });
       }
-      if (!usuarios) {
+      if (!medicos) {
         return res.status(400).json({
           status: 400,
-          message: "Usuarios no encontrado",
+          message: "medico no encontrado",
           errors: err
         });
       }
-      Usuario.count(condition, (err, conteo) => {
+      Medico.count(condition, (err, conteo) => {
         res.status(200).json({
           status: 200,
-          usuarios: usuarios,
+          medicos: medicos,
           total: conteo
         });
       });
@@ -40,10 +41,15 @@ app.get("/", (req, res, next) => {
 });
 
 app.put("/", mdAuth.verificaToken, (req, res) => {
-  let usuario = req.body;
-  usuario.password = bcrypt.hashSync(usuario.password, 10);
-  Usuario.findOneAndUpdate({ email: usuario.email }, { new: true }).exec(
-    (err, actualizarUsuario) => {
+  let id = req.query.id;
+  let medico = {
+    nombre: req.body.nombre,
+    usuario: req.usuario._id,
+    hospital: body.hospital._id
+  };
+
+  Medico.findOneAndUpdate({ _id: id }, { $set: medico }, { new: true }).exec(
+    (err, actualizarmedico) => {
       if (err) {
         return res.status(500).json({
           status: 500,
@@ -51,53 +57,56 @@ app.put("/", mdAuth.verificaToken, (req, res) => {
           message: "Query Error"
         });
       }
-      if (!actualizarUsuario) {
+      if (!actualizarmedico) {
         return res.status(400).json({
           status: 400,
-          message: "Usuarios no encontrado",
+          message: "medico no encontrado",
           errors: err
         });
       }
-      actualizarUsuario.password = "";
+
       res.status(200).json({
         status: 200,
-        usuario: actualizarUsuario,
-        message: "Usuario actualizado"
+        medico: actualizarmedico,
+        message: "medico actualizado"
       });
     }
   );
 });
 
 app.post("/", mdAuth.verificaToken, (req, res) => {
-  let usuario = new Usuario(req.body);
-  usuario.password = bcrypt.hashSync(usuario.password, 10);
-  usuario.save((err, nuevoUsuario) => {
+  let medico = new Medico({
+    nombre: req.body.nombre,
+    usuario: req.usuario._id,
+    hospital: req.body.hospital
+  });
+  medico.save((err, nuevomedico) => {
     if (err) {
       return res.status(400).json({
         status: 400,
-        message: "Error al crear usuario",
+        message: "Error al crear medico",
         errors: err
       });
     }
     res.status(201).json({
       status: 201,
-      usuario: nuevoUsuario,
-      message: "Usuario creado"
+      medico: nuevomedico,
+      message: "medico creado"
     });
   });
 });
 
 app.delete("/", mdAuth.verificaToken, (req, res) => {
-  let usuario = req.body;
+  let id = req.query.id;
   let changeStatus = {
     status: false
   };
 
-  Usuario.findOneAndUpdate(
-    { email: usuario.email },
+  Medico.findOneAndUpdate(
+    { _id: id },
     { $set: changeStatus },
     { new: true }
-  ).exec((err, usuario) => {
+  ).exec((err, medico) => {
     if (err) {
       return res.status(500).json({
         status: 500,
@@ -105,16 +114,16 @@ app.delete("/", mdAuth.verificaToken, (req, res) => {
         message: "Query Error"
       });
     }
-    if (!usuario) {
+    if (!medico) {
       return res.status(400).json({
         status: 400,
-        message: "Usuarios no encontrado",
+        message: "medico no encontrado",
         errors: err
       });
     }
     res.status(200).json({
       status: 200,
-      message: "Usuario inactivado"
+      message: "medico inactivado"
     });
   });
 });
